@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "scan-eat-139d4"
+  },
+  "targets": {
+    "scan-eat-139d4": {
+      "hosting": {
+        "scan-eat-client": [
+          "scan-eat-client"
+        ],
+        "scan-eat-admin": [
+          "scan-eat-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

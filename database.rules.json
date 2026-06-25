@@ -1,0 +1,28 @@
+{
+  "rules": {
+    "menu": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "categories": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "tables": {
+      ".read": true,
+      ".write": "auth != null",
+      "$tableId": {
+        "status": {
+          ".write": true
+        },
+        "activeOrderId": {
+          ".write": true
+        }
+      }
+    },
+    "orders": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
