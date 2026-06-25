@@ -1,7 +1,7 @@
 Ghidul Sistemului: admin-app și public-app
 
 1. Povestea pe scurt (Scopul)
-   Sistemul nostru este format din două aplicații web construite în React, care lucrează constant împreună:
+   Sistemul este format din două aplicații web construite în React, care lucrează constant împreună:
 
 admin-app: Este „panoul de control” al restaurantului, dedicat personalului.
 
