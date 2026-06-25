@@ -1,184 +1,188 @@
-# Restaurant Ordering System
+# Documentație tehnică — `admin-app` și `public-app`
 
-A real-time restaurant ordering system with two apps:
+## 1. Scop
 
-- **Public App** — Customer-facing mobile ordering (scan QR → browse menu → order → pay)
-- **Admin App** — Staff dashboard for managing menu, tables, and orders
+Sistemul este compus din două aplicații web React:
 
-Built with React (Vite), Firebase Realtime Database, Zustand, Tailwind CSS v4, and shadcn/ui.
+- **`admin-app`** — aplicația de administrare folosită de personal.
+- **`public-app`** — aplicația pentru clienți, accesată prin QR code-ul mesei.
 
-## Architecture
+Ambele aplicații folosesc **Firebase Realtime Database** pentru sincronizare în timp real. `admin-app` folosește suplimentar **Firebase Authentication** pentru autentificarea personalului.
 
-No backend server — pure BaaS (Backend as a Service) with Firebase:
+## 2. Arhitectură și stack
 
-- Firebase Realtime Database for data storage and real-time sync
-- Firebase Auth for admin authentication
-- Firebase Hosting for deployment (multisite)
+- **Frontend:** React 19 + TypeScript + Vite
+- **UI:** Tailwind CSS v4 + componente UI (Radix/shadcn-style)
+- **State management:** Zustand
+- **Routing:** React Router
+- **BaaS:** Firebase Realtime Database + Firebase Auth (admin)
+- **Deploy:** Firebase Hosting (multisite)
 
-## Prerequisites
+Arhitectura este **fără backend custom**: logica de business rulează în frontend, iar datele sunt persistate direct în Firebase.
 
-- Node.js 18+
-- Firebase CLI (`npm install -g firebase-tools`)
-- A Firebase project
+## 3. Structura proiectului
 
-## Setup
-
-### 1. Create a Firebase Project
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Click "Add Project" and follow the steps
-3. Create a Web App (Project Settings → Add App → Web)
-4. Copy the firebaseConfig values
-
-### 2. Enable Firebase Services
-
-**Realtime Database:**
-
-1. In Firebase Console → Build → Realtime Database
-2. Click "Create Database"
-3. Choose your region
-4. Start in **test mode** (we'll apply proper rules later)
-
-**Authentication:**
-
-1. In Firebase Console → Build → Authentication
-2. Click "Get Started"
-3. Enable **Email/Password** sign-in method
-4. Go to the **Users** tab and manually create an admin account (email + password)
-
-### 3. Configure Environment Variables
-
-Copy the example env files and fill in your Firebase config:
-
-```bash
-# Public App
-cp public-app/.env.example public-app/.env
-# Edit public-app/.env with your Firebase config values
-
-# Admin App
-cp admin-app/.env.example admin-app/.env
-# Edit admin-app/.env with your Firebase config values
-# Also set VITE_PUBLIC_APP_URL to your public app's URL
+```text
+restaurant-system/
+  admin-app/
+  public-app/
+  database.rules.json
+  firebase.json
 ```
 
-### 4. Install Dependencies
+## 4. Model de date (Realtime Database)
 
-```bash
-cd public-app && npm install
-cd ../admin-app && npm install
-```
-
-### 5. Deploy Database Rules
-
-```bash
-firebase deploy --only database
-```
-
-### 6. Run Locally
-
-In two terminals:
-
-```bash
-# Terminal 1 — Public App (port 5173)
-cd public-app
-npm run dev
-
-# Terminal 2 — Admin App (port 5174)
-cd admin-app
-npm run dev -- --port 5174
-```
-
-## Usage
-
-### Getting Started
-
-1. Open the **Admin App** at `http://localhost:5174`
-2. Log in with the admin account you created in Firebase Console
-3. Add some **categories** (e.g., Appetizers, Mains, Drinks)
-4. Add some **menu items** to each category
-5. Add some **tables** (e.g., Table 1, Table 2)
-6. Click the QR code button on a table to generate its QR code
-
-### Customer Flow
-
-1. Customer scans the QR code → opens the **Public App** at `/{tableId}`
-2. Clicks "Start Order" to begin
-3. Browses the menu and adds items
-4. Views their order with real-time status updates
-5. When done, clicks "Request Payment" and selects Cash or Card
-6. Waits for staff to confirm payment
-
-### Staff Flow
-
-1. Staff sees new orders appear in real-time on the **Orders** page
-2. Updates item statuses: Pending → Received → Preparing → Served
-3. When customer requests payment, a visual/audio alert appears
-4. Staff clicks "Confirm Payment" to complete the order and free the table
-
-## Deploying to Firebase Hosting
-
-### 1. Set Up Multisite Hosting
-
-In Firebase Console → Hosting → Add another site:
-
-- Create site: `scan-eat-client`
-- Create site: `scan-eat-admin`
-
-### 2. Configure Targets
-
-Edit `.firebaserc` and replace `your-firebase-project-id` with your actual project ID.
-
-```bash
-firebase target:apply hosting scan-eat-client scan-eat-client
-firebase target:apply hosting scan-eat-admin scan-eat-admin
-```
-
-### 3. Build and Deploy
-
-```bash
-# Build both apps
-cd public-app && npm run build
-cd ../admin-app && npm run build
-cd ..
-
-# Deploy everything
-firebase deploy
-```
-
-Your apps will be available at:
-
-- Public: `https://scan-eat-client.web.app`
-- Admin: `https://scan-eat-admin.web.app`
-
-Don't forget to update `VITE_PUBLIC_APP_URL` in the admin app's `.env` to the production public app URL before building.
-
-## Data Model
-
-```
+```text
 tables/{tableId}
-  name, number, status, activeOrderId
-
-menu/{itemId}
-  title, description, price, category, available, createdAt
+  name: string
+  number: number
+  status: "available" | "occupied" | "payment_requested"
+  activeOrderId: string | null
 
 categories/{categoryId}
-  name, order
+  name: string
+  order: number
+
+menu/{itemId}
+  title: string
+  description: string
+  price: number
+  category: categoryId
+  available: boolean
+  createdAt: timestamp
 
 orders/{orderId}
-  tableId, tableNumber, status, paymentMethod, createdAt, completedAt, total
+  tableId: string
+  tableNumber: number
+  status: "active" | "payment_requested" | "completed"
+  paymentMethod: "cash" | "card" | null
+  createdAt: timestamp
+  completedAt: timestamp | null
+  total: number
   items/{orderItemId}
-    menuItemId, title, price, quantity, status, addedAt, notes
+    menuItemId: string
+    title: string
+    price: number
+    quantity: number
+    status: "pending" | "received" | "preparing" | "served"
+    addedAt: timestamp
+    notes: string
 ```
 
-## Tech Stack
+## 5. `admin-app` (Aplicația de administrare)
 
-- **React** (Vite) — UI framework
-- **React Router v6** — Client-side routing
-- **Zustand** — State management
-- **Tailwind CSS v4** — Styling
-- **shadcn/ui** — UI component library
-- **Firebase Realtime Database** — Data storage + real-time sync
-- **Firebase Auth** — Admin authentication
-- **Firebase Hosting** — Deployment
-- **qrcode.react** — QR code generation
-- **Lucide React** — Icons
+### 5.1 Autentificare
+
+- Login pe email/parolă cu Firebase Auth.
+- Crearea userilor și setarea parolelor se fac din **Firebase Console**.
+- Rutele administrative sunt protejate prin `ProtectedRoute`.
+
+### 5.2 Rute
+
+- `/login`
+- `/` — Dashboard
+- `/menu` — Menu Management
+- `/tables` — Table Management
+- `/orders` — Order Management
+- `/orders/:orderId` — Order Detail
+
+### 5.3 Dashboard
+
+Afișează în timp real:
+
+- număr comenzi active;
+- număr cereri de plată;
+- mese ocupate din total;
+- comenzi completate.
+
+### 5.4 Menu Management
+
+- Administrare categorii și produse.
+- **Regulă:** categoria poate fi ștearsă doar dacă nu mai are produse.
+- Add/Edit/Delete categorie.
+- Add/Edit/Delete produs cu câmpuri:
+  - `title`
+  - `description`
+  - `price` (numeric)
+  - `category` (single select)
+  - `available` (toggle vizibilitate în meniu)
+
+### 5.5 Table Management
+
+- Add table (`number`, `name` opțional).
+- Delete table doar dacă este `available`.
+- Generare QR pentru fiecare masă: `${VITE_PUBLIC_APP_URL}/table/{tableId}`.
+- Descărcare QR în PNG (`Download PNG`).
+- Afișare status masă: `available` / `occupied` / `payment_requested`.
+
+### 5.6 Order Management
+
+- Comenzile apar instant (listener real-time, fără refresh).
+- Pentru fiecare comandă:
+  - număr masă;
+  - total;
+  - timp de la creare;
+  - iteme + cantitate + observații + status item.
+- Flux status item: `pending → received → preparing → served`.
+- Cererile de plată sunt evidențiate vizual + alertă audio.
+- Plata se confirmă prin `Confirm Payment`, ceea ce:
+  - setează comanda `completed`;
+  - eliberează masa (`available`, `activeOrderId = null`).
+- Comenzile finalizate sunt în tab-ul `Completed`.
+
+## 6. `public-app` (Aplicația clienților)
+
+### 6.1 Rute
+
+- `/`
+- `/table/:tableId`
+- `/table/:tableId/menu`
+- `/table/:tableId/order`
+- `/receipt/:orderId`
+
+### 6.2 Flux client
+
+1. Clientul scanează QR-ul mesei și ajunge pe link-ul unic al mesei.
+2. `Start Order` creează comanda și ocupă masa.
+3. În meniu, produsele sunt grupate pe categorii.
+4. La `+`, se deschide modal pentru:
+   - cantitate;
+   - note/opțiuni (alergeni, preferințe etc.).
+5. `Add to Order` adaugă item-ul cu status inițial `pending`.
+6. În `View Order`, clientul vede itemele și statusurile live.
+7. `Request Payment` deschide modal cu opțiuni: `Cash` / `Card`.
+8. După confirmarea plății din `admin-app`, apare `View Receipt`.
+9. Bonul poate fi vizualizat și printat (`window.print()`).
+
+## 7. Sincronizare în timp real
+
+- `admin-app` ascultă continuu nodurile: `menu`, `categories`, `tables`, `orders`.
+- `public-app` ascultă masa curentă + comanda curentă.
+- Actualizările sunt propagate instant între aplicații prin Firebase listeners (`onValue`).
+
+## 8. Configurare și deploy
+
+### 8.1 Variabile de mediu
+
+Ambele aplicații necesită variabile Firebase (`VITE_FIREBASE_*`).
+
+În plus, `admin-app` folosește:
+
+- `VITE_PUBLIC_APP_URL` pentru generarea link-urilor QR.
+
+### 8.2 Hosting
+
+`firebase.json` definește două site-uri:
+
+- `scan-eat-client` → `public-app/dist`
+- `scan-eat-admin` → `admin-app/dist`
+
+## 9. Reguli Firebase (observație tehnică)
+
+În `database.rules.json`:
+
+- `menu` / `categories`: read public, write doar user autentificat.
+- `tables`: read public, write autenticat (cu excepții punctuale pe `status` și `activeOrderId`).
+- `orders`: read și write public.
+
+Pentru producție, se recomandă întărirea regulilor pentru `orders` și update-uri pe `tables`, astfel încât doar fluxurile valide să fie permise.
