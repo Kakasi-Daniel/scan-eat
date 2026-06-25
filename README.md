@@ -1,188 +1,123 @@
-# Documentație tehnică — `admin-app` și `public-app`
+Ghidul Sistemului: admin-app și public-app
 
-## 1. Scop
+1. Povestea pe scurt (Scopul)
+   Sistemul nostru este format din două aplicații web construite în React, care lucrează constant împreună:
 
-Sistemul este compus din două aplicații web React:
+admin-app: Este „panoul de control” al restaurantului, dedicat personalului.
 
-- **`admin-app`** — aplicația de administrare folosită de personal.
-- **`public-app`** — aplicația pentru clienți, accesată prin QR code-ul mesei.
+public-app: Este meniul digital interactiv al clientului, pe care acesta îl accesează super simplu, scanând codul QR de pe masă.
 
-Ambele aplicații folosesc **Firebase Realtime Database** pentru sincronizare în timp real. `admin-app` folosește suplimentar **Firebase Authentication** pentru autentificarea personalului.
+Magia din spate? Ambele aplicații comunică instantaneu prin Firebase Realtime Database. Pentru partea de administrare, am adăugat și Firebase Authentication, astfel încât doar personalul autorizat să aibă acces la datele sensibile.
 
-## 2. Arhitectură și stack
+2. Cum am construit totul (Arhitectură și Tehnologii)
+   Am mers pe o arhitectură modernă, fără un backend clasic. Asta înseamnă că toată logica se întâmplă direct în interfață (frontend), iar datele se salvează și se citesc direct din Firebase.
 
-- **Frontend:** React 19 + TypeScript + Vite
-- **UI:** Tailwind CSS v4 + componente UI (Radix/shadcn-style)
-- **State management:** Zustand
-- **Routing:** React Router
-- **BaaS:** Firebase Realtime Database + Firebase Auth (admin)
-- **Deploy:** Firebase Hosting (multisite)
+Uite ce am folosit sub capotă:
 
-Arhitectura este **fără backend custom**: logica de business rulează în frontend, iar datele sunt persistate direct în Firebase.
+Frontend: React 19, susținut de TypeScript și Vite pentru o dezvoltare rapidă.
 
-## 3. Structura proiectului
+Design (UI): Tailwind CSS v4 combinat cu componente gata făcute în stilul Radix/shadcn, pentru un aspect curat și modern.
 
-```text
+Starea aplicației: Zustand, ca să ținem minte datele eficient și fără bătăi de cap.
+
+Navigare: React Router.
+
+Baza de date & Auth: Firebase Realtime Database și Firebase Auth (pentru admini).
+
+Găzduire (Deploy): Totul e urcat pe Firebase Hosting, folosind setarea de tip multisite.
+
+3. Cum e organizat codul
+   Dacă arunci o privire în fișiere, lucrurile sunt împărțite simplu și logic:
+
+Plaintext
 restaurant-system/
-  admin-app/
-  public-app/
-  database.rules.json
-  firebase.json
-```
+admin-app/ # Aici stă codul pentru angajați
+public-app/ # Aici e codul pentru clienți
+database.rules.json # Regulile de securitate pentru baza de date
+firebase.json # Configurările pentru hosting 4. Inima sistemului: Modelul de date (Realtime Database)
+Informația este organizată pe patru mari categorii (noduri), gândite să fie ușor de citit:
 
-## 4. Model de date (Realtime Database)
-
-```text
+Plaintext
 tables/{tableId}
-  name: string
-  number: number
-  status: "available" | "occupied" | "payment_requested"
-  activeOrderId: string | null
+name: string
+number: number
+status: "available" | "occupied" | "payment_requested"
+activeOrderId: string | null
 
 categories/{categoryId}
-  name: string
-  order: number
+name: string
+order: number
 
 menu/{itemId}
-  title: string
-  description: string
-  price: number
-  category: categoryId
-  available: boolean
-  createdAt: timestamp
+title: string
+description: string
+price: number
+category: categoryId
+available: boolean
+createdAt: timestamp
 
 orders/{orderId}
-  tableId: string
-  tableNumber: number
-  status: "active" | "payment_requested" | "completed"
-  paymentMethod: "cash" | "card" | null
-  createdAt: timestamp
-  completedAt: timestamp | null
-  total: number
-  items/{orderItemId}
-    menuItemId: string
-    title: string
-    price: number
-    quantity: number
-    status: "pending" | "received" | "preparing" | "served"
-    addedAt: timestamp
-    notes: string
-```
+tableId: string
+tableNumber: number
+status: "active" | "payment_requested" | "completed"
+paymentMethod: "cash" | "card" | null
+createdAt: timestamp
+completedAt: timestamp | null
+total: number
+items/{orderItemId}
+menuItemId: string
+title: string
+price: number
+quantity: number
+status: "pending" | "received" | "preparing" | "served"
+addedAt: timestamp
+notes: string 5. Aplicația echipei (admin-app)
+Autentificare și Rute
+Intrarea se face pe bază de email și parolă. Pentru a păstra lucrurile sigure, conturile noi pentru colegi se creează direct din Firebase Console, iar toate rutele interne sunt protejate (ProtectedRoute).
 
-## 5. `admin-app` (Aplicația de administrare)
+Pe scurt, avem aceste ecrane: /login, / (Dashboard), /menu, /tables, /orders și pagina detaliată pentru fiecare comandă (/orders/:orderId).
 
-### 5.1 Autentificare
+Ce poți face în aplicație?
+Dashboard-ul: Îți arată pulsul restaurantului dintr-o privire (câte comenzi sunt active, cine a cerut nota, câte mese sunt ocupate și ce am finalizat deja).
 
-- Login pe email/parolă cu Firebase Auth.
-- Crearea userilor și setarea parolelor se fac din **Firebase Console**.
-- Rutele administrative sunt protejate prin `ProtectedRoute`.
+Meniul: Aici adaugi sau modifici categoriile și preparatele. O regulă importantă de ținut minte: nu poți șterge o categorie dacă mai ai produse în ea. De asemenea, poți ascunde temporar un produs dacă ai rămas fără ingrediente (butonul available).
 
-### 5.2 Rute
+Mesele (Tables): Adaugi mese noi și generezi codurile QR pentru ele (linkul arată cam așa: ${VITE_PUBLIC_APP_URL}/table/{tableId}). Le poți descărca frumos în format PNG ca să le printezi. Tot de aici vezi statusul live al fiecărei mese.
 
-- `/login`
-- `/` — Dashboard
-- `/menu` — Menu Management
-- `/tables` — Table Management
-- `/orders` — Order Management
-- `/orders/:orderId` — Order Detail
+Comenzile: Partea cea mai dinamică! Comenzile noi apar instant pe ecran, fără să dai refresh. Vezi masa, totalul, detaliile comenzii și statusul fiecărui produs (de la pending până la served). Când un client cere nota, ecranul te atenționează vizual și audio. După ce confirmi plata, masa se eliberează automat și comanda se mută în tab-ul „Completed”.
 
-### 5.3 Dashboard
+6. Experiența clientului (public-app)
+   Aplicația clienților e gândită să fie super intuitivă. Traseul (fluxul) arată așa:
 
-Afișează în timp real:
+Clientul se așază la masă, scanează codul QR și ajunge pe link-ul unic al mesei lui.
 
-- număr comenzi active;
-- număr cereri de plată;
-- mese ocupate din total;
-- comenzi completate.
+Când apasă Start Order, sistemul îi creează comanda și marchează masa ca ocupată pentru ospătari.
 
-### 5.4 Menu Management
+Se uită prin meniu (bine organizat pe categorii) și își alege ce vrea apăsând butonul de +. Acolo poate alege cantitatea și poate lăsa un mesaj la bucătărie (ex: "fără ceapă").
 
-- Administrare categorii și produse.
-- **Regulă:** categoria poate fi ștearsă doar dacă nu mai are produse.
-- Add/Edit/Delete categorie.
-- Add/Edit/Delete produs cu câmpuri:
-  - `title`
-  - `description`
-  - `price` (numeric)
-  - `category` (single select)
-  - `available` (toggle vizibilitate în meniu)
+Când dă Add to Order, produsele ajung la personal cu statusul de pending.
 
-### 5.5 Table Management
+În secțiunea View Order, clientul vede live ce se întâmplă cu mâncarea lui.
 
-- Add table (`number`, `name` opțional).
-- Delete table doar dacă este `available`.
-- Generare QR pentru fiecare masă: `${VITE_PUBLIC_APP_URL}/table/{tableId}`.
-- Descărcare QR în PNG (`Download PNG`).
-- Afișare status masă: `available` / `occupied` / `payment_requested`.
+La final, apasă Request Payment, alege cum vrea să plătească (Cash sau Card), iar după ce ospătarul confirmă încasarea, clientul primește un bon digital (View Receipt) pe care îl poate și printa la nevoie.
 
-### 5.6 Order Management
+7. Cum comunică între ele (Sincronizarea)
+   Aici intervin „puterile” Firebase-ului. admin-app este mereu cu ochii (onValue listeners) pe meniu, categorii, mese și comenzi. În același timp, telefonul clientului (public-app) este atent doar la masa lui și la comanda lui curentă. Când cineva face o modificare într-o parte, ea apare instant și în cealaltă.
 
-- Comenzile apar instant (listener real-time, fără refresh).
-- Pentru fiecare comandă:
-  - număr masă;
-  - total;
-  - timp de la creare;
-  - iteme + cantitate + observații + status item.
-- Flux status item: `pending → received → preparing → served`.
-- Cererile de plată sunt evidențiate vizual + alertă audio.
-- Plata se confirmă prin `Confirm Payment`, ceea ce:
-  - setează comanda `completed`;
-  - eliberează masa (`available`, `activeOrderId = null`).
-- Comenzile finalizate sunt în tab-ul `Completed`.
+8. Detalii tehnice: Configurare și Deploy
+   Ambele aplicații au nevoie de cheile Firebase (VITE*FIREBASE*\*) în variabilele de mediu. În plus, admin-app are nevoie de VITE_PUBLIC_APP_URL pentru a ști cum să genereze link-urile pentru codurile QR.
 
-## 6. `public-app` (Aplicația clienților)
+În fișierul firebase.json am definit clar unde se duce codul fiecărei aplicații:
 
-### 6.1 Rute
+scan-eat-client ține fișierele din public-app/dist
 
-- `/`
-- `/table/:tableId`
-- `/table/:tableId/menu`
-- `/table/:tableId/order`
-- `/receipt/:orderId`
+scan-eat-admin ține fișierele din admin-app/dist
 
-### 6.2 Flux client
+9. O notă importantă despre Securitate (Reguli Firebase)
+   În database.rules.json am stabilit niște granițe clare:
 
-1. Clientul scanează QR-ul mesei și ajunge pe link-ul unic al mesei.
-2. `Start Order` creează comanda și ocupă masa.
-3. În meniu, produsele sunt grupate pe categorii.
-4. La `+`, se deschide modal pentru:
-   - cantitate;
-   - note/opțiuni (alergeni, preferințe etc.).
-5. `Add to Order` adaugă item-ul cu status inițial `pending`.
-6. În `View Order`, clientul vede itemele și statusurile live.
-7. `Request Payment` deschide modal cu opțiuni: `Cash` / `Card`.
-8. După confirmarea plății din `admin-app`, apare `View Receipt`.
-9. Bonul poate fi vizualizat și printat (`window.print()`).
+Meniul și categoriile: Oricine le poate vedea, dar doar angajații autentificați pot face modificări.
 
-## 7. Sincronizare în timp real
+Mesele: Oricine le poate vedea. Modificările se fac doar de către angajați, cu câteva mici excepții (ex: când clientul dă „Start Order” sau cere plata).
 
-- `admin-app` ascultă continuu nodurile: `menu`, `categories`, `tables`, `orders`.
-- `public-app` ascultă masa curentă + comanda curentă.
-- Actualizările sunt propagate instant între aplicații prin Firebase listeners (`onValue`).
-
-## 8. Configurare și deploy
-
-### 8.1 Variabile de mediu
-
-Ambele aplicații necesită variabile Firebase (`VITE_FIREBASE_*`).
-
-În plus, `admin-app` folosește:
-
-- `VITE_PUBLIC_APP_URL` pentru generarea link-urilor QR.
-
-### 8.2 Hosting
-
-`firebase.json` definește două site-uri:
-
-- `scan-eat-client` → `public-app/dist`
-- `scan-eat-admin` → `admin-app/dist`
-
-## 9. Reguli Firebase (observație tehnică)
-
-În `database.rules.json`:
-
-- `menu` / `categories`: read public, write doar user autentificat.
-- `tables`: read public, write autenticat (cu excepții punctuale pe `status` și `activeOrderId`).
-- `orders`: read și write public.
-
-Pentru producție, se recomandă întărirea regulilor pentru `orders` și update-uri pe `tables`, astfel încât doar fluxurile valide să fie permise.
+Comenzile: Momentan sunt deschise (read/write public) pentru a ușura testarea. Recomandare pentru producție: Aceste reguli trebuie întărite, astfel încât doar fluxurile stricte (creare comandă nouă, modificare status) să fie permise, pentru a evita modificări nedorite din exterior.
